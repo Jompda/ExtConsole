@@ -57,9 +57,11 @@ const server = tls.createServer({
     socket.on('end', () => { })
     socket.on('error', () => { })
     socket.once('data', (data) => {
-        const uuid = /ExtConsole:(.{8}(-.{4}){3}-.{12})\n\n/.exec(data)[1]
-        socket.removeAllListeners()
-        uuid ? emitter.emit(uuid, socket) : socket.end()
+        try {
+            const uuid = /ExtConsole:(.{8}(-.{4}){3}-.{12})\n\n/.exec(data)[1]
+            socket.removeAllListeners()
+            uuid ? emitter.emit(uuid, socket) : socket.end()
+        } catch (err) { }
     })
 })
 server.listen(() => {
