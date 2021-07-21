@@ -1,0 +1,14 @@
+{
+    "name": "extconsole",
+    "version": "1.0.0",
+    "description": "Allows the use of multiple STDINs and STDOUTs.",
+    "main": "index.js",
+    "scripts": {
+        "test": "node test.js"
+    },
+    "author": "Joni Rapo",
+    "license": "ISC",
+    "dependencies": {
+        "detect-port": "^1.3.0"
+    }
+}
