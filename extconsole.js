@@ -2,9 +2,10 @@ const tls = require('tls')
 const fs = require('fs')
 
 
+if (process.argv.length < 4) return console.log('Arguments: <port> <uuid> [host]')
 const port = parseInt(process.argv[2])
 const uuid = process.argv[3]
-const host = '127.0.0.1'
+const host = process.argv[4] || '127.0.0.1'
 console.log(port, uuid, host)
 
 
@@ -33,13 +34,15 @@ function connect() {
  */
 function errorListener(err) {
     if (err.message !== `connect ECONNREFUSED ${host}:${port}`) return;
+    socket = undefined
     const retryPeriod = 1000
-    //console.log(`Connection failed, retrying in ${retryPeriod} ms ..`)
+    console.log(`Connection failed, retrying in ${retryPeriod} ms ..`)
     setTimeout(connect, retryPeriod)
 }
 
 
 process.on('SIGINT', () => {
+    if (!socket || socket.writableEnded) return process.exit()
     socket.write('RECEIVED SIGNAL "SIGINT". EXITING ..\n')
     socket.end()
 })
