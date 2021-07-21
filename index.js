@@ -1,13 +1,19 @@
 const childProcess = require('child_process')
+const crypto = require('crypto')
 const net = require('net')
+const events = require('events')
 const { Console } = require('console')
-const detectPort = require('detect-port')
 const path = require('path')
 
 
-module.exports = {
-    createConsole
-}
+let port = undefined
+
+
+/**@type {function}*/
+let ready = undefined
+module.exports = new Promise((resolve) => ready = resolve)
+module.exports.createConsole = createConsole
+module.exports.close = close
 
 
 class ExtConsole extends Console {
@@ -26,8 +32,7 @@ class ExtConsole extends Console {
      * @param {Buffer} data 
      */
     ondata(data) { // Default
-        const addr = this.socket.address()
-        process.stdout.write(`(${addr.address}:${addr.port}): ` + data)
+        process.stdout.write(`(${this.socket.remoteAddress}:${this.socket.remotePort}): ` + data)
     }
 
 
@@ -40,50 +45,65 @@ class ExtConsole extends Console {
 }
 
 
+const emitter = new events.EventEmitter()
+
+
+// Server for the ExtConsoles.
+const server = net.createServer((socket) => {
+    socket.on('end', () => { })
+    socket.on('error', () => { })
+    socket.once('data', (data) => {
+        const uuid = /ExtConsole:(.{8}(-.{4}){3}-.{12})\n\n/.exec(data)[1]
+        socket.removeAllListeners()
+        uuid ? emitter.emit(uuid, socket) : socket.end()
+    })
+})
+server.listen(() => {
+    console.log('ExtConsole server:', server.address())
+    port = server.address().port
+    ready()
+})
+
+
 /**
- * @param {number} startingPort Lowest desireable port number.
- * @param {string} host 
  * @returns {Promise<ExtConsole>}
  */
-function createConsole(startingPort = undefined, host = '127.0.0.1') {
+function createConsole() {
+    if (!server.listening) throw new Error('ExtConsole server is not listening yet!')
     /**@type {ExtConsole}*/
     let extConsole = undefined
-    process.addListener('uncaughtException', errorListener)
+    const uuid = crypto.randomUUID()
 
-    let resolve, reject, port
-    return new Promise((res, rej) => {
-        resolve = res; reject = rej
-        detectPort(startingPort).then((_port) => {
-            port = _port
-            // Shell specific commands needed in the future
-            childProcess.exec(`start node ${path.join(process.cwd(), 'extconsole.js')} ${port}`)
-            connect()
-        })
+
+    /**@type {function}*/
+    let resolve = undefined
+    return new Promise((res) => {
+        resolve = res
+        // Shell specific commands needed in the future
+        childProcess.exec(`start node ${path.join(process.cwd(), 'extconsole.js')} ${port} ${uuid}`)
+        emitter.once(uuid, connected)
     })
 
 
-    function connect() {
-        const socket = net.createConnection(port, host, () => {
-            process.removeListener('uncaughtException', errorListener)
-            socket.on('end', () =>
-                console.log(`External console (${socket.address().address}:${port}) disconnected.`)
-            )
-            socket.on('error', (err) =>
-                console.log(`External console (${socket.address().address}:${port}) disconnected. Error: ${err.message}`)
-            )
-            extConsole = new ExtConsole(socket)
-            resolve(extConsole)
-        })
-    }
-
     /**
-     * @param {Error} err 
+     * @param {net.Socket} socket 
      */
-    function errorListener(err) {
-        if (err.message !== `connect ECONNREFUSED ${host}:${port}`) return;
-        const retryPeriod = 1000
-        //console.log(`Connection failed, retrying in ${retryPeriod} ms ..`)
-        setTimeout(connect, retryPeriod)
+    function connected(socket) {
+        socket.on('end', disconnected)
+        socket.on('error', disconnected)
+        function disconnected(err) {
+            console.log(
+                `External console (${socket.remoteAddress}:${socket.remotePort}) disconnected.`,
+                err ? `Error: ${err.message}` : ''
+            )
+        }
+        extConsole = new ExtConsole(socket)
+        resolve(extConsole)
     }
+}
+
+
+function close() {
+    server.close()
 }
 

@@ -1,16 +1,42 @@
 const net = require('net')
 
 
-const server = net.createServer((socket) => {
-    if (server.connections > 1) {
-        console.log('Dropped a connection after the initial client connected.')
-        return socket.end()
-    }
-    server.close() // Stop accepting more connections.
-    socket.on('end', () => console.log('Closing'))
-    socket.on('error', () => console.log('Closing'))
-    socket.pipe(process.stdout)
-    process.stdin.pipe(socket)
+const port = parseInt(process.argv[2])
+const uuid = process.argv[3]
+const host = '127.0.0.1'
+console.log(port, uuid, host)
+
+
+process.addListener('uncaughtException', errorListener)
+/**@type {net.Socket}*/
+let socket = undefined
+connect()
+
+
+function connect() {
+    socket = net.createConnection(port, host, () => {
+        process.removeListener('uncaughtException', errorListener)
+        socket.on('end', () => console.log('Closing'))
+        socket.on('error', () => console.log('Closing'))
+        socket.pipe(process.stdout)
+        process.stdin.pipe(socket)
+        socket.write('ExtConsole:' + uuid + '\n\n')
+    })
+}
+
+/**
+ * @param {Error} err 
+ */
+function errorListener(err) {
+    if (err.message !== `connect ECONNREFUSED ${host}:${port}`) return;
+    const retryPeriod = 1000
+    //console.log(`Connection failed, retrying in ${retryPeriod} ms ..`)
+    setTimeout(connect, retryPeriod)
+}
+
+
+process.on('SIGINT', () => {
+    socket.write('RECEIVED SIGNAL "SIGINT". EXITING ..\n')
+    socket.end()
 })
-server.listen(process.argv[2])
 
