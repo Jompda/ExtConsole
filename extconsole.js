@@ -1,4 +1,5 @@
-const net = require('net')
+const tls = require('tls')
+const fs = require('fs')
 
 
 const port = parseInt(process.argv[2])
@@ -8,13 +9,16 @@ console.log(port, uuid, host)
 
 
 process.addListener('uncaughtException', errorListener)
-/**@type {net.Socket}*/
+/**@type {tls.TLSSocket}*/
 let socket = undefined
 connect()
 
 
 function connect() {
-    socket = net.createConnection(port, host, () => {
+    socket = tls.connect(port, host, {
+        key: fs.readFileSync('cert/key.pem'),
+        rejectUnauthorized: false // Remove if the certificate is legitimate.
+    }, () => {
         process.removeListener('uncaughtException', errorListener)
         socket.on('end', () => console.log('Closing'))
         socket.on('error', () => console.log('Closing'))

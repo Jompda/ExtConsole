@@ -1,6 +1,7 @@
 const childProcess = require('child_process')
 const crypto = require('crypto')
-const net = require('net')
+const tls = require('tls')
+const fs = require('fs')
 const events = require('events')
 const { Console } = require('console')
 const path = require('path')
@@ -18,11 +19,11 @@ module.exports.close = close
 
 class ExtConsole extends Console {
     /**
-     * @param {net.Socket} socket 
+     * @param {tls.TLSSocket} socket 
      */
     constructor(socket) {
         super({ stdout: socket, stderr: socket })
-        /**@type {net.Socket}*/
+        /**@type {tls.TLSSocket}*/
         this.socket = socket
         socket.on('data', (data) => this.ondata(data))
     }
@@ -49,7 +50,10 @@ const emitter = new events.EventEmitter()
 
 
 // Server for the ExtConsoles.
-const server = net.createServer((socket) => {
+const server = tls.createServer({
+    key: fs.readFileSync('cert/key.pem'),
+    cert: fs.readFileSync('cert/cert.pem')
+}, (socket) => {
     socket.on('end', () => { })
     socket.on('error', () => { })
     socket.once('data', (data) => {
@@ -86,7 +90,7 @@ function createConsole() {
 
 
     /**
-     * @param {net.Socket} socket 
+     * @param {tls.TLSSocket} socket 
      */
     function connected(socket) {
         socket.on('end', disconnected)
