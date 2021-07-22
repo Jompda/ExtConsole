@@ -11,8 +11,8 @@ let port = undefined
 
 
 /**@type {function}*/
-let ready = undefined
-module.exports = new Promise((resolve) => ready = resolve)
+let onready = undefined
+module.exports = new Promise((resolve) => onready = resolve)
 module.exports.createConsole = createConsole
 module.exports.close = close
 
@@ -49,10 +49,19 @@ class ExtConsole extends Console {
 const emitter = new events.EventEmitter()
 
 
-// Server for the ExtConsoles.
+const setup = {
+    serverListening: false,
+    privateKeyGenerated: false
+}
+function checkReady() {
+    if (!setup.serverListening || !setup.privateKeyGenerated) return;
+    console.log('ready')
+    onready()
+}
+
 const server = tls.createServer({
-    key: fs.readFileSync('cert/key.pem'),
-    cert: fs.readFileSync('cert/cert.pem')
+    key: fs.readFileSync(process.env.PRIVATEKEYPATH || 'cert/key.pem'),
+    cert: fs.readFileSync(process.env.CERTPATH || 'cert/cert.pem')
 }, (socket) => {
     socket.on('end', () => { })
     socket.on('error', () => { })
@@ -67,7 +76,21 @@ const server = tls.createServer({
 server.listen(() => {
     console.log('ExtConsole server:', server.address())
     port = server.address().port
-    ready()
+    setup.serverListening = true
+    checkReady()
+})
+
+crypto.generateKeyPair('rsa', {
+    modulusLength: 4096,
+    privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem'
+    }
+}, (pair, publicKey, privateKey) => {
+    fs.writeFile('privatekey.pem', privateKey, () => {
+        setup.privateKeyGenerated = true
+        checkReady()
+    })
 })
 
 
