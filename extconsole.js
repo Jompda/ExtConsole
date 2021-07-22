@@ -1,5 +1,5 @@
 const tls = require('tls')
-const fs = require('fs')
+const crypto = require('crypto')
 
 
 if (process.argv.length < 4) return console.log('Arguments: <port> <uuid> [host]')
@@ -17,13 +17,26 @@ process.on('SIGINT', () => {
     socket.write('RECEIVED SIGNAL "SIGINT". EXITING ..\n')
     socket.end()
 })
-connect()
+
+
+/**@type {string}*/
+let key = undefined
+crypto.generateKeyPair('rsa', {
+    modulusLength: 4096,
+    privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem'
+    }
+}, (err, publicKey, privateKey) => {
+    if (err) throw err
+    key = privateKey
+    connect()
+})
 
 
 function connect() {
     socket = tls.connect(port, host, {
-        key: fs.readFileSync('privatekey.pem'),
-        rejectUnauthorized: false // Remove if the certificate is legitimate.
+        key, rejectUnauthorized: false // Remove if the certificate is legitimate.
     }, () => {
         process.removeListener('uncaughtException', errorListener)
         socket.on('error', () => { })
@@ -43,4 +56,3 @@ function errorListener(err) {
     console.log(`Connection failed, retrying in ${retryPeriod} ms ..`)
     setTimeout(connect, retryPeriod)
 }
-

@@ -11,3 +11,12 @@ extConsole.then(() =>
     )
 )
 
+
+let exiting = false
+process.on('SIGINT', () => {
+    if (exiting++) return process.exit(1)
+    extConsole.close((err, gracefully) => {
+        console.log({ err, gracefully })
+        process.exit(gracefully ? 0 : 1)
+    })
+})

@@ -5,16 +5,12 @@ const fs = require('fs')
 const events = require('events')
 const { Console } = require('console')
 const path = require('path')
-
-
-let port = undefined
+const stoppable = require('stoppable')
 
 
 /**@type {function}*/
 let onready = undefined
 module.exports = new Promise((resolve) => onready = resolve)
-module.exports.createConsole = createConsole
-module.exports.close = close
 
 
 class ExtConsole extends Console {
@@ -49,17 +45,7 @@ class ExtConsole extends Console {
 const emitter = new events.EventEmitter()
 
 
-const setup = {
-    serverListening: false,
-    privateKeyGenerated: false
-}
-function checkReady() {
-    if (!setup.serverListening || !setup.privateKeyGenerated) return;
-    console.log('ready')
-    onready()
-}
-
-const server = tls.createServer({
+const server = stoppable(tls.createServer({
     key: fs.readFileSync(process.env.PRIVATEKEYPATH || 'cert/key.pem'),
     cert: fs.readFileSync(process.env.CERTPATH || 'cert/cert.pem')
 }, (socket) => {
@@ -72,25 +58,10 @@ const server = tls.createServer({
             uuid ? emitter.emit(uuid, socket) : socket.end()
         } catch (err) { }
     })
-})
+}))
 server.listen(() => {
-    console.log('ExtConsole server:', server.address())
-    port = server.address().port
-    setup.serverListening = true
-    checkReady()
-})
-
-crypto.generateKeyPair('rsa', {
-    modulusLength: 4096,
-    privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem'
-    }
-}, (pair, publicKey, privateKey) => {
-    fs.writeFile('privatekey.pem', privateKey, () => {
-        setup.privateKeyGenerated = true
-        checkReady()
-    })
+    console.log('ExtConsole server address:', server.address())
+    onready()
 })
 
 
@@ -109,7 +80,7 @@ function createConsole() {
     return new Promise((res) => {
         resolve = res
         // Shell specific commands needed in the future
-        childProcess.exec(`start node ${path.join(process.cwd(), 'extconsole.js')} ${port} ${uuid}`)
+        childProcess.exec(`start node ${path.join(process.cwd(), 'extconsole.js')} ${server.address().port} ${uuid}`)
         emitter.once(uuid, connected)
     })
 
@@ -132,7 +103,14 @@ function createConsole() {
 }
 
 
-function close() {
-    server.close()
+/**
+ * @param {function(Error, boolean)} cb 
+ */
+function close(cb) {
+    server.stop(cb)
 }
 
+
+module.exports.createConsole = createConsole
+module.exports.close = close
+module.exports.server = server
