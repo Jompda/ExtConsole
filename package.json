@@ -11,5 +11,13 @@
     "dependencies": {
         "detect-port": "^1.3.0",
         "stoppable": "^1.1.0"
-    }
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/Jompda/ExtConsole.git"
+    },
+    "bugs": {
+        "url": "https://github.com/Jompda/ExtConsole/issues"
+    },
+    "homepage": "https://github.com/Jompda/ExtConsole#readme"
 }
