@@ -47,8 +47,8 @@ const emitter = new events.EventEmitter()
 
 
 const server = stoppable(tls.createServer({
-    key: fs.readFileSync(process.env.PRIVATEKEYPATH || 'cert/key.pem'),
-    cert: fs.readFileSync(process.env.CERTPATH || 'cert/cert.pem')
+    key: fs.readFileSync(process.env.PRIVATEKEYPATH || path.join(process.cwd(), 'cert/key.pem')),
+    cert: fs.readFileSync(process.env.CERTPATH || path.join(process.cwd(), 'cert/cert.pem'))
 }, (socket) => {
     socket.on('end', () => { })
     socket.on('error', () => { })
@@ -81,7 +81,7 @@ function createConsole() {
     return new Promise((res) => {
         resolve = res
         // Shell specific commands needed in the future
-        childProcess.exec(`start node ${path.join(process.cwd(), 'extconsole.js')} ${server.address().port} ${uuid}`)
+        childProcess.exec(`start node ${path.join(__dirname, 'extconsole.js')} ${server.address().port} ${uuid}`)
         emitter.once(uuid, connected)
     })
 
