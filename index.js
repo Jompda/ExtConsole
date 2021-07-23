@@ -90,6 +90,8 @@ function createConsole() {
      * @param {tls.TLSSocket} socket 
      */
     function connected(socket) {
+        const address = socket.remoteFamily === 'IPv6' ? '[' + socket.remoteAddress + ']' : socket.remoteAddress
+        console.log(`External console ${uuid} connected from ${address}:${socket.remotePort}.`)
         socket.on('end', disconnected)
         socket.on('error', disconnected)
         function disconnected(err) {
