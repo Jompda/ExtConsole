@@ -16,11 +16,12 @@ module.exports = new Promise((resolve) => onready = resolve)
 class ExtConsole extends Console {
     /**
      * @param {tls.TLSSocket} socket 
+     * @param {string} uuid
      */
-    constructor(socket) {
+    constructor(socket, uuid) {
         super({ stdout: socket, stderr: socket })
-        /**@type {tls.TLSSocket}*/
         this.socket = socket
+        this.uuid = uuid
         socket.on('data', (data) => this.ondata(data))
     }
 
@@ -29,7 +30,7 @@ class ExtConsole extends Console {
      * @param {Buffer} data 
      */
     ondata(data) { // Default
-        process.stdout.write(`(${this.socket.remoteAddress}:${this.socket.remotePort}): ` + data)
+        process.stdout.write(`${this.uuid}: ` + data)
     }
 
 
@@ -93,11 +94,11 @@ function createConsole() {
         socket.on('error', disconnected)
         function disconnected(err) {
             console.log(
-                `External console (${socket.remoteAddress}:${socket.remotePort}) disconnected.`,
+                `External console ${uuid} disconnected.`,
                 err ? `Error: ${err.message}` : ''
             )
         }
-        extConsole = new ExtConsole(socket)
+        extConsole = new ExtConsole(socket, uuid)
         resolve(extConsole)
     }
 }
