@@ -1,5 +1,5 @@
-const tls = require('tls')
-const crypto = require('crypto')
+const net = require('net'), tls = require('tls')
+const { generateKeyPair } = require('crypto')
 
 
 if (process.argv.length < 4) return console.log('Arguments: <port> <uuid> [host]')
@@ -9,7 +9,7 @@ const host = process.argv[4] || '127.0.0.1'
 console.log(port, uuid, host)
 
 
-/**@type {tls.TLSSocket}*/
+/**@type {net.Socket|tls.TLSSocket}*/
 let socket = undefined
 process.addListener('uncaughtException', connectionErrorListener)
 process.on('SIGINT', (signal) => {
@@ -21,7 +21,7 @@ process.on('SIGINT', (signal) => {
 
 /**@type {string}*/
 let key = undefined
-crypto.generateKeyPair('rsa', {
+generateKeyPair('rsa', {
     modulusLength: 4096,
     privateKeyEncoding: {
         type: 'pkcs8',

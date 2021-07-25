@@ -1,21 +1,19 @@
-const childProcess = require('child_process')
-const crypto = require('crypto')
-const tls = require('tls')
+const { exec: childProcessExec } = require('child_process')
+const { randomUUID } = require('crypto')
+const net = require('net'), tls = require('tls')
 const fs = require('fs')
-const events = require('events')
+const { EventEmitter } = require('events')
 const { Console } = require('console')
-const path = require('path')
+const { join: pathJoin } = require('path')
 const stoppable = require('stoppable')
 
 
-/**@type {function}*/
-let onready = undefined
-module.exports = new Promise((resolve) => onready = resolve)
+module.exports = setup
 
 
 class ExtConsole extends Console {
     /**
-     * @param {tls.TLSSocket} socket 
+     * @param {net.Socket|tls.TLSSocket} socket 
      * @param {string} uuid
      */
     constructor(socket, uuid) {
@@ -43,77 +41,86 @@ class ExtConsole extends Console {
 }
 
 
-const emitter = new events.EventEmitter()
-
-
-const server = stoppable(tls.createServer({
-    key: fs.readFileSync(process.env.PRIVATEKEYPATH || path.join(process.cwd(), 'cert/key.pem')),
-    cert: fs.readFileSync(process.env.CERTPATH || path.join(process.cwd(), 'cert/cert.pem'))
-}, (socket) => {
-    socket.on('end', () => { })
-    socket.on('error', () => { })
-    socket.once('data', (data) => {
-        try {
-            const uuid = /ExtConsole:(.{8}(-.{4}){3}-.{12})\n\n/.exec(data)[1]
-            socket.removeAllListeners()
-            uuid ? emitter.emit(uuid, socket) : socket.end()
-        } catch (err) { }
-    })
-}))
-server.listen(() => {
-    console.log('ExtConsole server address:', server.address())
-    onready()
-})
-
-
 /**
- * @returns {Promise<ExtConsole>}
+ * @param {boolean} useTLS 
  */
-function createConsole() {
-    if (!server.listening) throw new Error('ExtConsole server is not listening yet!')
-    /**@type {ExtConsole}*/
-    let extConsole = undefined
-    const uuid = crypto.randomUUID()
-
-
+function setup(useTLS) {
     /**@type {function}*/
-    let resolve = undefined
-    return new Promise((res) => {
-        resolve = res
-        // Shell specific commands needed in the future
-        childProcess.exec(`start node ${path.join(__dirname, 'extconsole.js')} ${server.address().port} ${uuid}`)
-        emitter.once(uuid, connected)
+    let onready = undefined
+
+
+    const emitter = new EventEmitter()
+    const server = stoppable(tls.createServer({
+        key: fs.readFileSync(process.env.PRIVATEKEYPATH || pathJoin(process.cwd(), 'cert/key.pem')),
+        cert: fs.readFileSync(process.env.CERTPATH || pathJoin(process.cwd(), 'cert/cert.pem'))
+    }, (socket) => {
+        socket.on('end', () => { })
+        socket.on('error', () => { })
+        socket.once('data', (data) => {
+            try {
+                const uuid = /ExtConsole:(.{8}(-.{4}){3}-.{12})\n\n/.exec(data)[1]
+                socket.removeAllListeners()
+                uuid ? emitter.emit(uuid, socket) : socket.end()
+            } catch (err) { }
+        })
+    }))
+    server.listen(() => {
+        console.log('ExtConsole server address:', server.address())
+        onready()
     })
+
+
+    const controller = new Promise(resolve => onready = resolve)
+    controller.createConsole = createConsole
+    controller.close = close
+    controller.server = server
+    return controller
 
 
     /**
-     * @param {tls.TLSSocket} socket 
+     * @returns {Promise<ExtConsole>}
      */
-    function connected(socket) {
-        const address = socket.remoteFamily === 'IPv6' ? '[' + socket.remoteAddress + ']' : socket.remoteAddress
-        console.log(`External console ${uuid} connected from ${address}:${socket.remotePort}.`)
-        socket.on('end', disconnected)
-        socket.on('error', disconnected)
-        function disconnected(err) {
-            console.log(
-                `External console ${uuid} disconnected.`,
-                err ? `Error: ${err.message}` : ''
-            )
+    function createConsole() {
+        if (!server.listening) throw new Error('ExtConsole server is not listening yet!')
+        /**@type {ExtConsole}*/
+        let extConsole = undefined
+        const uuid = randomUUID()
+
+
+        /**@type {function}*/
+        let resolve = undefined
+        return new Promise((res) => {
+            resolve = res
+            // Shell specific commands needed in the future
+            childProcessExec(`start node ${pathJoin(__dirname, 'extconsole.js')} ${server.address().port} ${uuid}`)
+            emitter.once(uuid, connected)
+        })
+
+
+        /**
+         * @param {net.Socket|tls.TLSSocket} socket 
+         */
+        function connected(socket) {
+            const address = socket.remoteFamily === 'IPv6' ? '[' + socket.remoteAddress + ']' : socket.remoteAddress
+            console.log(`External console ${uuid} connected from ${address}:${socket.remotePort}.`)
+            socket.on('end', disconnected)
+            socket.on('error', disconnected)
+            function disconnected(err) {
+                console.log(
+                    `External console ${uuid} disconnected.`,
+                    err ? `Error: ${err.message}` : ''
+                )
+            }
+            extConsole = new ExtConsole(socket, uuid)
+            resolve(extConsole)
         }
-        extConsole = new ExtConsole(socket, uuid)
-        resolve(extConsole)
+    }
+
+
+    /**
+     * @param {function(Error, boolean)} cb 
+     */
+    function close(cb) {
+        server.stop(cb)
     }
 }
-
-
-/**
- * @param {function(Error, boolean)} cb 
- */
-function close(cb) {
-    server.stop(cb)
-}
-
-
-module.exports.createConsole = createConsole
-module.exports.close = close
-module.exports.server = server
