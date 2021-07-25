@@ -50,10 +50,30 @@ function setup(useTLS) {
 
 
     const emitter = new EventEmitter()
-    const server = stoppable(tls.createServer({
-        key: fs.readFileSync(process.env.PRIVATEKEYPATH || pathJoin(process.cwd(), 'cert/key.pem')),
-        cert: fs.readFileSync(process.env.CERTPATH || pathJoin(process.cwd(), 'cert/cert.pem'))
-    }, (socket) => {
+    const server = stoppable(
+        useTLS ?
+            tls.createServer({
+                key: fs.readFileSync(process.env.PRIVATEKEYPATH || pathJoin(process.cwd(), 'cert/key.pem')),
+                cert: fs.readFileSync(process.env.CERTPATH || pathJoin(process.cwd(), 'cert/cert.pem'))
+            }, onConnection)
+            : net.createServer(onConnection)
+    )
+
+
+    const controller = {
+        createConsole,
+        close,
+        server
+    }
+
+
+    server.listen(() => onready(controller))
+
+
+    /**
+     * @param {net.Socket|tls.TLSSocket} socket 
+     */
+    function onConnection(socket) {
         socket.on('end', () => { })
         socket.on('error', () => { })
         socket.once('data', (data) => {
@@ -63,18 +83,7 @@ function setup(useTLS) {
                 uuid ? emitter.emit(uuid, socket) : socket.end()
             } catch (err) { }
         })
-    }))
-    server.listen(() => {
-        console.log('ExtConsole server address:', server.address())
-        onready()
-    })
-
-
-    const controller = new Promise(resolve => onready = resolve)
-    controller.createConsole = createConsole
-    controller.close = close
-    controller.server = server
-    return controller
+    }
 
 
     /**
@@ -123,4 +132,10 @@ function setup(useTLS) {
     function close(cb) {
         server.stop(cb)
     }
+
+
+    /**
+     * @type {Promise<controller>}
+     */
+    return new Promise(resolve => onready = resolve)
 }
