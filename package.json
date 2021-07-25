@@ -1,6 +1,6 @@
 {
     "name": "extconsole",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "description": "Allows the use of multiple STDINs and STDOUTs.",
     "main": "index.js",
     "scripts": {
