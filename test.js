@@ -14,7 +14,7 @@ extConsole(false).then((consoles) => {
     let exiting = false
     process.on('SIGINT', () => {
         if (exiting++) return process.exit(1)
-        consoles.close((err, gracefully) => {
+        consoles.stop((err, gracefully) => {
             console.log({ err, gracefully })
             process.exit(gracefully ? 0 : 1)
         })

@@ -43,7 +43,12 @@ class ExtConsole extends Console {
 
 /**
  * @param {boolean} useTLS 
- * @returns {Promise<>}
+ * @returns {Promise<{
+ *   useTLS: boolean,
+ *   createConsole: function(): ExtConsole,
+ *   stop: function(function(Error, boolean)),
+ *   server: net.Server|tls.Server
+ * }>}
  */
 function setup(useTLS) {
     /**@type {function}*/
@@ -64,7 +69,7 @@ function setup(useTLS) {
     const controller = {
         useTLS,
         createConsole,
-        close,
+        stop,
         server
     }
 
@@ -131,13 +136,10 @@ function setup(useTLS) {
     /**
      * @param {function(Error, boolean)} cb 
      */
-    function close(cb) {
+    function stop(cb) {
         server.stop(cb)
     }
 
 
-    /**
-     * @type {Promise<controller>}
-     */
     return new Promise(resolve => onready = resolve)
 }
