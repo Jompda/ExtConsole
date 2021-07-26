@@ -1,7 +1,7 @@
 const extConsole = require('./index.js')
 
 
-extConsole(true).then((consoles) => {
+extConsole(false).then((consoles) => {
     console.log('ExtConsole server address:', consoles.server.address())
     process.stdin.on('data', (data) =>
         consoles.createConsole().then((c) => {

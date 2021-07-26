@@ -2,11 +2,12 @@ const net = require('net'), tls = require('tls')
 const { generateKeyPair } = require('crypto')
 
 
-if (process.argv.length < 4) return console.log('Arguments: <port> <uuid> [host]')
-const port = parseInt(process.argv[2])
-const uuid = process.argv[3]
-const host = process.argv[4] || '127.0.0.1'
-console.log(port, uuid, host)
+if (process.argv.length < 5) return exitOnError(console.log('Arguments: <uuid> <port> <useTLS>'))
+const uuid = process.argv[2]
+const port = parseInt(process.argv[3])
+const useTLS = process.argv[4].toLowerCase() === 'true'
+const host = '127.0.0.1'
+console.log({ uuid, port, useTLS, host })
 
 
 /**@type {net.Socket|tls.TLSSocket}*/
@@ -21,7 +22,8 @@ process.on('SIGINT', (signal) => {
 
 /**@type {string}*/
 let key = undefined
-generateKeyPair('rsa', {
+if (!useTLS) connect()
+else generateKeyPair('rsa', {
     modulusLength: 4096,
     privateKeyEncoding: {
         type: 'pkcs8',
@@ -35,15 +37,19 @@ generateKeyPair('rsa', {
 
 
 function connect() {
-    socket = tls.connect(port, host, {
-        key, rejectUnauthorized: false // Remove if the certificate is legitimate.
-    }, () => {
+    socket = useTLS ?
+        tls.connect(port, host, {
+            key, rejectUnauthorized: false // Remove if the certificate is legitimate.
+        }, onConnected)
+        : net.connect(port, host, onConnected)
+
+    function onConnected() {
         process.removeListener('uncaughtException', connectionErrorListener)
         socket.on('error', exitOnError)
         socket.pipe(process.stdout)
         process.stdin.pipe(socket)
         socket.write('ExtConsole:' + uuid + '\n\n')
-    })
+    }
 }
 
 /**
@@ -62,7 +68,7 @@ function connectionErrorListener(err) {
  * @param {Error} err 
  */
 function exitOnError(err) {
-    console.error(err)
+    if (err) console.error(err)
     console.log('Press ENTER to exit..')
     process.stdin.once('data', () => process.exit())
 }

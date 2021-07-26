@@ -43,6 +43,7 @@ class ExtConsole extends Console {
 
 /**
  * @param {boolean} useTLS 
+ * @returns {Promise<>}
  */
 function setup(useTLS) {
     /**@type {function}*/
@@ -61,6 +62,7 @@ function setup(useTLS) {
 
 
     const controller = {
+        useTLS,
         createConsole,
         close,
         server
@@ -101,7 +103,7 @@ function setup(useTLS) {
         return new Promise((res) => {
             resolve = res
             // Shell specific commands needed in the future
-            childProcessExec(`start node ${pathJoin(__dirname, 'extconsole.js')} ${server.address().port} ${uuid}`)
+            childProcessExec(`start node ${pathJoin(__dirname, 'extconsole.js')} ${uuid} ${server.address().port} ${useTLS}`)
             emitter.once(uuid, connected)
         })
 
