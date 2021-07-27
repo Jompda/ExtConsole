@@ -2,10 +2,11 @@ const net = require('net'), tls = require('tls')
 const { generateKeyPair } = require('crypto')
 
 
-if (process.argv.length < 5) return exitOnError(console.log('Arguments: <uuid> <port> <useTLS>'))
-const uuid = process.argv[2]
-const port = parseInt(process.argv[3])
-const useTLS = process.argv[4].toLowerCase() === 'true'
+process.argv.splice(0, 2)
+if (process.argv.length < 3) return exitOnError(console.log('Arguments: <uuid> <port> <useTLS>'))
+const uuid = process.argv[0]
+const port = parseInt(process.argv[1])
+const useTLS = process.argv[2].toLowerCase() === 'true'
 const host = '127.0.0.1'
 console.log({ uuid, port, useTLS, host })
 
