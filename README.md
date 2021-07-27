@@ -3,7 +3,7 @@ Allows the use of multiple STDINs and STDOUTs.
 
 ## Example
 ```javascript
-const extConsole = require('./index.js')
+const extConsole = require('extconsole')
 
 extConsole(false).then((consoles) => {
     process.stdin.on('data', (data) =>
