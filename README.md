@@ -25,5 +25,6 @@ extConsole(false).then((consoles) => {
 ```
 
 ## TLS
-key: process.env.PRIVATEKEYPATH || ./cert/key.pem
-cert: process.env.CERTPATH || ./cert/cert.pem
+For now the options are as follows:<br>
+**key**: process.env.PRIVATEKEYPATH || ./cert/key.pem<br>
+**cert**: process.env.CERTPATH || ./cert/cert.pem
