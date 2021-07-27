@@ -4,9 +4,9 @@ const extConsole = require('./index.js')
 extConsole(false).then((consoles) => {
     console.log('ExtConsole server address:', consoles.server.address())
     process.stdin.on('data', (data) =>
-        consoles.createConsole().then((c) => {
-            c.log(data.toString('utf8', 0, data.length - 2)) // Remove 2x newline
-            c.ondata = (data) => console.log(data.toString('utf8', 0, data.length - 1))
+        consoles.createConsole().then((console1) => {
+            console1.log(data.toString('utf8', 0, data.length - 2)) // Remove 2x newline
+            console1.ondata = (data) => console.log(data.toString('utf8', 0, data.length - 1))
         })
     )
 
